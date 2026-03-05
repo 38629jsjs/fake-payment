@@ -1,1 +1,1 @@
-worker: python main.py
+worker: python fake_payment.py
