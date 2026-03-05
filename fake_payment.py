@@ -25,7 +25,7 @@ def generate_mixed(length):
 def start_handler(message):
     if message.from_user.id != OWNER_ID:
         return 
-    msg = bot.send_message(message.chat.id, "💰 <b>Step 1:</b> Enter the amount (e.g., 5.00):", parse_mode="HTML")
+    msg = bot.send_message(message.chat.id, "💰 <b>Step 1:</b> Enter the amount (e.g., 1.25):", parse_mode="HTML")
     bot.register_next_step_handler(msg, get_amount)
 
 def get_amount(message):
@@ -37,7 +37,7 @@ def get_name(message, amount):
     name = message.text.upper()
     markup = types.InlineKeyboardMarkup(row_width=2)
     
-    # Using | as separator to prevent split errors with long names
+    # Using '|' as a safe separator
     markup.add(
         types.InlineKeyboardButton("ABA PayWay", callback_data=f"bk|ABA|{amount}|{name}"),
         types.InlineKeyboardButton("ACLEDA Bank", callback_data=f"bk|ACL|{amount}|{name}"),
@@ -49,27 +49,27 @@ def get_name(message, amount):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('bk|'))
 def handle_finish(call):
-    # Parse data correctly
     _, bank, amount, name = call.data.split('|')
     
     # PHNOM PENH TIMEZONE FIX (UTC+7)
     now = datetime.utcnow() + timedelta(hours=7)
     
     if bank == "ABA":
-        # EXACT PayWay Style - matches your request perfectly
+        # THE EXACT ABA STYLE
         trx_id = generate_digits(15)
         apv = generate_digits(6)
+        last_three = generate_digits(3)
+        
         res = (
             f"PayWay by ABA\n\n"
             f"${amount} paid by {name}\n\n"
-            f"(*{generate_digits(3)}) on {now.strftime('%b %d')}, {now.strftime('%I:%M %p')} "
+            f"(*{last_three}) on {now.strftime('%b %d')}, {now.strftime('%I:%M %p')} "
             f"via ABA PAY at {STORE_NAME}. "
-            f"Trx. ID: <code>{trx_id}</code>, APV: <code>{apv}</code>.\n\n"
+            f"Trx. ID: {trx_id}, APV: {apv}.\n\n"
             f"{now.strftime('%H:%M')}"
         )
     
     elif bank == "ACL":
-        # ACLEDA Receipt Style
         res = (
             f"📋 <b>ACLEDA Bank Receipt</b>\n"
             f"✅ <b>ប្រតិបត្តិការ ជោគជ័យ</b>\n"
@@ -78,7 +78,7 @@ def handle_finish(call):
             f"---------------------------\n"
             f"ពី: <b>{name}</b>\n"
             f"ទៅ: <b>{RECEIVER_NAME}</b>\n"
-            f"លេខយោង: <code>{secrets.token_hex(4)}</code>\n"
+            f"លេខយោង: <code>{generate_mixed(8)}</code>\n"
             f"---------------------------\n"
             f"💰 <b>ទឹកប្រាក់: USD {amount}</b>\n"
             f"---------------------------\n"
@@ -86,18 +86,15 @@ def handle_finish(call):
         )
 
     elif bank == "TRU":
-        # TrueMoney Style
         res = (
             f"🔸 <b>TrueMoney Transfer</b>\n\n"
             f"Received <b>USD {amount}</b> from <b>{name}</b>\n"
-            f"To: <b>{RECEIVER_NAME}</b>\n"
             f"Ref ID: <code>{generate_digits(10)}</code>\n"
             f"Date: {now.strftime('%d/%m/%Y %H:%M')}\n"
             f"Status: SUCCESSFUL"
         )
 
     elif bank == "WNG":
-        # Wing Money Style
         res = (
             f"💸 <b>Wing Money Received</b>\n\n"
             f"You have received <b>${amount}</b> from <b>{name}</b>.\n"
@@ -108,9 +105,9 @@ def handle_finish(call):
 
     try:
         bot.send_message(PROOF_CHANNEL_ID, res, parse_mode="HTML")
-        bot.edit_message_text("✅ Proof successfully sent to channel!", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("✅ Receipt posted to channel!", call.message.chat.id, call.message.message_id)
     except Exception as e:
-        bot.send_message(call.message.chat.id, f"❌ <b>Error:</b>\n{e}", parse_mode="HTML")
+        bot.send_message(call.message.chat.id, f"❌ Error: {e}")
 
-print("Vinzy Store Bot is running...")
 bot.infinity_polling()
+
